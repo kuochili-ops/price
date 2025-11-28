@@ -49,8 +49,9 @@ if uploaded_file:
                     days = (latest['有效起日_解析'] - earliest['有效起日_解析']).days
                     # 經歷年/月/日
                     delta = relativedelta(latest['有效起日_解析'], earliest['有效起日_解析'])
-                    years = delta.years
-                    months = delta.months
+                    total_months = delta.years * 12 + delta.months
+                    years = total_months // 12
+                    months = total_months % 12
                     remain_days = delta.days
                     # 價格降幅計算（確保型別正確且不為零）
                     try:
@@ -97,12 +98,22 @@ if uploaded_file:
                 history['前次支付價'] = history['支付價'].shift(1)
 
                 def calc_delta(row):
-                    if isinstance(row['有效起日_解析'], datetime) and isinstance(row['前次有效起日'], datetime):
-                        delta = relativedelta(row['有效起日_解析'], row['前次有效起日'])
-                        days = (row['有效起日_解析'] - row['前次有效起日']).days
-                        return f"{delta.years}年{delta.months}月{delta.days}天（{days}天）"
-                    else:
-                        return ""
+                    try:
+                        if isinstance(row['有效起日_解析'], datetime) and isinstance(row['前次有效起日'], datetime):
+                            d1 = row['前次有效起日']
+                            d2 = row['有效起日_解析']
+                            if d2 < d1:
+                                d1, d2 = d2, d1
+                            delta = relativedelta(d2, d1)
+                            total_months = delta.years * 12 + delta.months
+                            years = total_months // 12
+                            months = total_months % 12
+                            days = (d2 - d1).days
+                            return f"{years}年{months}月{delta.days}天（{days}天）"
+                        else:
+                            return ""
+                    except Exception as e:
+                        return f"計算錯誤: {e}"
                 history['經歷時間'] = history.apply(calc_delta, axis=1)
 
                 def calc_drop(row):
