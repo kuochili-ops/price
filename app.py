@@ -85,4 +85,3 @@ if uploaded_file:
     else:
         st.info("請輸入成分關鍵字進行查詢。")
 else:
-        
