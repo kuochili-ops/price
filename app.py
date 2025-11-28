@@ -7,14 +7,19 @@ from dateutil.relativedelta import relativedelta
 st.title("藥品成分查詢與價格變化分析（民國曆日期支援）")
 
 def parse_roc_date(roc_str):
-    """民國曆7位數轉西元日期"""
+    """民國曆6或7位數轉西元日期"""
     try:
         roc_str = str(roc_str)
-        if len(roc_str) != 7 or not roc_str.isdigit():
+        if len(roc_str) == 7 and roc_str.isdigit():
+            year = int(roc_str[:3]) + 1911
+            month = int(roc_str[3:5])
+            day = int(roc_str[5:7])
+        elif len(roc_str) == 6 and roc_str.isdigit():
+            year = int(roc_str[:2]) + 1911
+            month = int(roc_str[2:4])
+            day = int(roc_str[4:6])
+        else:
             raise ValueError("格式錯誤")
-        year = int(roc_str[:3]) + 1911
-        month = int(roc_str[3:5])
-        day = int(roc_str[5:7])
         return datetime(year, month, day)
     except Exception as e:
         return f"解析失敗: {roc_str} ({e})"
@@ -45,15 +50,12 @@ if uploaded_file:
                 if not valid_dates.empty:
                     earliest = valid_dates.sort_values('有效起日_解析').iloc[0]
                     latest = valid_dates.sort_values('有效起日_解析').iloc[-1]
-                    # 經歷天數
                     days = (latest['有效起日_解析'] - earliest['有效起日_解析']).days
-                    # 經歷年/月/日
                     delta = relativedelta(latest['有效起日_解析'], earliest['有效起日_解析'])
                     total_months = delta.years * 12 + delta.months
                     years = total_months // 12
                     months = total_months % 12
                     remain_days = delta.days
-                    # 價格降幅計算（確保型別正確且不為零）
                     try:
                         earliest_price = float(earliest['支付價'])
                         latest_price = float(latest['支付價'])
