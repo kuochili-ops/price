@@ -63,4 +63,7 @@ if uploaded_file:
                 """)
         else:
             st.warning("查無符合成分的藥品資料。")
+    else:
+        st.info("請輸入成分關鍵字進行查詢。")
 else:
+    st.info("請先上傳 CSV 檔案。")
