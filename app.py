@@ -38,6 +38,7 @@ if uploaded_file:
 
                 # 解析民國曆日期
                 sub_df['有效起日_解析'] = sub_df['有效起日'].apply(parse_roc_date)
+                sub_df['支付價'] = pd.to_numeric(sub_df['支付價'], errors='coerce')
 
                 # 只取解析成功的日期
                 valid_dates = sub_df[sub_df['有效起日_解析'].apply(lambda x: isinstance(x, datetime))]
@@ -89,6 +90,46 @@ if uploaded_file:
 - 經歷時間：{days if days is not None else '無法計算'} 天（約 {years if years is not None else '-'} 年 {months if months is not None else '-'} 月 {remain_days if remain_days is not None else '-'} 天）
 - 價格降幅：{f"{price_drop:.2f}%" if price_drop is not None else '無法計算'}
 """)
+
+                # 歷次價格調整經歷時間與降幅
+                history = valid_dates.sort_values('有效起日_解析').copy()
+                history['前次有效起日'] = history['有效起日_解析'].shift(1)
+                history['前次支付價'] = history['支付價'].shift(1)
+
+                def calc_delta(row):
+                    if isinstance(row['有效起日_解析'], datetime) and isinstance(row['前次有效起日'], datetime):
+                        delta = relativedelta(row['有效起日_解析'], row['前次有效起日'])
+                        days = (row['有效起日_解析'] - row['前次有效起日']).days
+                        return f"{delta.years}年{delta.months}月{delta.days}天（{days}天）"
+                    else:
+                        return ""
+                history['經歷時間'] = history.apply(calc_delta, axis=1)
+
+                def calc_drop(row):
+                    try:
+                        if pd.notnull(row['前次支付價']) and row['前次支付價'] != 0:
+                            drop = (row['前次支付價'] - row['支付價']) / row['前次支付價'] * 100
+                            return f"{drop:.2f}%"
+                        else:
+                            return ""
+                    except:
+                        return ""
+                history['降價幅度'] = history.apply(calc_drop, axis=1)
+
+                # 只顯示有前次資料的變動
+                result = history.loc[history['前次有效起日'].notnull(), [
+                    '前次有效起日', '有效起日_解析', '前次支付價', '支付價', '經歷時間', '降價幅度'
+                ]]
+                result = result.rename(columns={
+                    '前次有效起日': '前次有效起日',
+                    '有效起日_解析': '本次有效起日',
+                    '前次支付價': '前次價格',
+                    '支付價': '本次價格'
+                })
+
+                st.markdown("#### 歷次價格調整經歷時間與降幅")
+                st.dataframe(result)
+
                 # 顯示解析失敗的日期
                 fail_dates = sub_df[sub_df['有效起日_解析'].apply(lambda x: not isinstance(x, datetime))]
                 if not fail_dates.empty:
