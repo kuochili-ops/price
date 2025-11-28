@@ -2,6 +2,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
 st.title("藥品成分查詢與價格變化分析（民國曆日期支援）")
 
@@ -43,9 +44,21 @@ if uploaded_file:
                 if not valid_dates.empty:
                     earliest = valid_dates.sort_values('有效起日_解析').iloc[0]
                     latest = valid_dates.sort_values('有效起日_解析').iloc[-1]
+                    # 經歷天數
                     days = (latest['有效起日_解析'] - earliest['有效起日_解析']).days
+                    # 經歷年/月/日
+                    delta = relativedelta(latest['有效起日_解析'], earliest['有效起日_解析'])
+                    years = delta.years
+                    months = delta.months
+                    remain_days = delta.days
+                    # 價格降幅計算（確保型別正確且不為零）
                     try:
-                        price_drop = (earliest['支付價'] - latest['支付價']) / earliest['支付價'] * 100
+                        earliest_price = float(earliest['支付價'])
+                        latest_price = float(latest['支付價'])
+                        if earliest_price != 0:
+                            price_drop = (earliest_price - latest_price) / earliest_price * 100
+                        else:
+                            price_drop = None
                     except Exception:
                         price_drop = None
                     earliest_date_str = earliest['有效起日_解析'].strftime('%Y-%m-%d')
@@ -54,6 +67,7 @@ if uploaded_file:
                     earliest = sub_df.iloc[0]
                     latest = sub_df.iloc[-1]
                     days = None
+                    years = months = remain_days = None
                     price_drop = None
                     earliest_date_str = f"無法解析（原始值：{earliest['有效起日']}）"
                     latest_date_str = f"無法解析（原始值：{latest['有效起日']}）"
@@ -72,7 +86,7 @@ if uploaded_file:
 - 最早價格：{earliest['支付價']}
 - 最新有效起日：{latest_date_str}
 - 最新價格：{latest['支付價']}
-- 經歷時間：{days if days is not None else '無法計算'} 天
+- 經歷時間：{days if days is not None else '無法計算'} 天（約 {years if years is not None else '-'} 年 {months if months is not None else '-'} 月 {remain_days if remain_days is not None else '-'} 天）
 - 價格降幅：{f"{price_drop:.2f}%" if price_drop is not None else '無法計算'}
 """)
                 # 顯示解析失敗的日期
